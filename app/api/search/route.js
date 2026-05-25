@@ -33,7 +33,6 @@ safety_admin_main, safety_mgmt_plan, nevo_pikuach, nevo_safety_ordinance, nevo_s
 nevo_safety_committees, nevo_safety_officers, nevo_training, nevo_height, nevo_hazardous,
 nevo_noise, nevo_accidents, nevo_monitoring, mlg_main, mlg_publications`;
 
-export const runtime = 'edge';
 export const maxDuration = 30;
 
 export async function POST(request) {

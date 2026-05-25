@@ -33,7 +33,6 @@ const PLAN_SYSTEM = `אתה מומחה לדיני בטיחות תעסוקתית 
   ]
 }`;
 
-export const runtime = 'edge';
 export const maxDuration = 60;
 
 export async function POST(request) {
