@@ -3,7 +3,7 @@ import { createServerClient } from '@/lib/supabase';
 
 export async function DELETE(request, { params }) {
   const supabase = createServerClient();
-  const { id } = params;
+  const { id } = await params;
 
   const { error } = await supabase
     .from('saved_terms')
