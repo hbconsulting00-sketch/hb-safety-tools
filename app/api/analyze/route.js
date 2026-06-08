@@ -7,12 +7,17 @@ function repairJson(str) {
   let result = '';
   for (let i = 0; i < str.length; i++) {
     const c = str[i];
+    const code = c.charCodeAt(0);
     if (escaped) { result += c; escaped = false; continue; }
     if (c === '\\' && inString) { result += c; escaped = true; continue; }
     if (c === '"') { inString = !inString; result += c; continue; }
-    if (inString && c === '\n') { result += '\\n'; continue; }
-    if (inString && c === '\r') { result += '\\r'; continue; }
-    if (inString && c === '\t') { result += '\\t'; continue; }
+    if (inString && code < 0x20) {
+      if (c === '\n') { result += '\\n'; continue; }
+      if (c === '\r') { result += '\\r'; continue; }
+      if (c === '\t') { result += '\\t'; continue; }
+      result += '\\u' + code.toString(16).padStart(4, '0');
+      continue;
+    }
     result += c;
   }
   return result;
@@ -156,11 +161,11 @@ export async function POST(request) {
         },
         body: JSON.stringify({
           model: MODEL,
-          max_tokens: 4000,
+          max_tokens: 8000,
           system: PLAN_SYSTEM,
           messages: [{
             role: 'user',
-            content: `${textContent}\n\nנתח את תוכנית ניהול הבטיחות לעיל מול כל 12 דרישות תקנות 2013. החזר JSON בלבד ללא markdown ולא טקסט נוסף.`,
+            content: `${textContent}\n\nנתח את תוכנית ניהול הבטיחות לעיל מול כל 12 דרישות תקנות 2013. החזר JSON בלבד ללא markdown ולא טקסט נוסף. שמור found_text קצר — עד 2 משפטים.`,
           }],
         }),
       };
@@ -176,7 +181,7 @@ export async function POST(request) {
         },
         body: JSON.stringify({
           model: MODEL,
-          max_tokens: 4000,
+          max_tokens: 8000,
           system: PLAN_SYSTEM,
           messages: [{
             role: 'user',
@@ -191,7 +196,7 @@ export async function POST(request) {
               },
               {
                 type: 'text',
-                text: 'נתח את תוכנית ניהול הבטיחות המצורפת מול כל 12 דרישות תקנות 2013. החזר JSON בלבד ללא markdown ולא טקסט נוסף.',
+                text: 'נתח את תוכנית ניהול הבטיחות המצורפת מול כל 12 דרישות תקנות 2013. החזר JSON בלבד ללא markdown ולא טקסט נוסף. שמור found_text קצר — עד 2 משפטים.',
               },
             ],
           }],
