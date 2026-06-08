@@ -1,5 +1,23 @@
 import { NextResponse } from 'next/server';
 
+// Fixes raw control characters inside JSON string values (common in Claude output)
+function repairJson(str) {
+  let inString = false;
+  let escaped = false;
+  let result = '';
+  for (let i = 0; i < str.length; i++) {
+    const c = str[i];
+    if (escaped) { result += c; escaped = false; continue; }
+    if (c === '\\' && inString) { result += c; escaped = true; continue; }
+    if (c === '"') { inString = !inString; result += c; continue; }
+    if (inString && c === '\n') { result += '\\n'; continue; }
+    if (inString && c === '\r') { result += '\\r'; continue; }
+    if (inString && c === '\t') { result += '\\t'; continue; }
+    result += c;
+  }
+  return result;
+}
+
 const MODEL = 'claude-sonnet-4-6';
 
 const PLAN_SYSTEM = `אתה מומחה לדיני בטיחות תעסוקתית בישראל, בעל ידע מעמיק בתקנות ארגון הפיקוח על העבודה (תכנית לניהול בטיחות), התשע"ג-2013.
@@ -33,7 +51,7 @@ const PLAN_SYSTEM = `אתה מומחה לדיני בטיחות תעסוקתית 
   ]
 }`;
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(request) {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -41,49 +59,84 @@ export async function POST(request) {
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY לא מוגדר על השרת' }, { status: 500 });
   }
 
-  let fileBase64;
+  let fileBase64, textContent;
   try {
     const body = await request.json();
     fileBase64 = body.fileBase64;
+    textContent = body.textContent;
   } catch {
     return NextResponse.json({ error: 'בקשה לא תקינה' }, { status: 400 });
   }
 
-  if (!fileBase64) {
-    return NextResponse.json({ error: 'חסר קובץ PDF' }, { status: 400 });
+  if (!fileBase64 && !textContent) {
+    return NextResponse.json({ error: 'חסר קובץ לניתוח' }, { status: 400 });
   }
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 8000,
-        system: PLAN_SYSTEM,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'document',
-              source: {
-                type: 'base64',
-                media_type: 'application/pdf',
-                data: fileBase64,
+    let fetchOptions;
+
+    if (textContent) {
+      // Word document: send as plain text, no beta header needed
+      fetchOptions = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 4000,
+          system: PLAN_SYSTEM,
+          messages: [{
+            role: 'user',
+            content: `${textContent}\n\nנתח את תוכנית ניהול הבטיחות לעיל מול כל 12 דרישות תקנות 2013. החזר JSON בלבד ללא markdown ולא טקסט נוסף.`,
+          }],
+        }),
+      };
+    } else {
+      // PDF: use document type with beta header
+      fetchOptions = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          'anthropic-beta': 'pdfs-2024-09-25',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 4000,
+          system: PLAN_SYSTEM,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'document',
+                source: {
+                  type: 'base64',
+                  media_type: 'application/pdf',
+                  data: fileBase64,
+                },
               },
-            },
-            {
-              type: 'text',
-              text: 'נתח את תוכנית ניהול הבטיחות המצורפת מול כל 12 דרישות תקנות 2013. החזר JSON בלבד ללא markdown ולא טקסט נוסף.',
-            },
-          ],
-        }],
-      }),
-    });
+              {
+                type: 'text',
+                text: 'נתח את תוכנית ניהול הבטיחות המצורפת מול כל 12 דרישות תקנות 2013. החזר JSON בלבד ללא markdown ולא טקסט נוסף.',
+              },
+            ],
+          }],
+        }),
+      };
+    }
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', fetchOptions);
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      let errMsg = errText;
+      try { errMsg = JSON.parse(errText).error?.message ?? errText; } catch {}
+      return NextResponse.json({ error: errMsg }, { status: 502 });
+    }
 
     const data = await resp.json();
 
@@ -101,7 +154,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'לא התקבל JSON תקין מה-AI' }, { status: 502 });
     }
 
-    return NextResponse.json(JSON.parse(match[0]));
+    return NextResponse.json(JSON.parse(repairJson(match[0])));
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

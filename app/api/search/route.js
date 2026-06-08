@@ -1,26 +1,54 @@
 import { NextResponse } from 'next/server';
 
+function repairJson(str) {
+  let inString = false;
+  let escaped = false;
+  let result = '';
+  for (let i = 0; i < str.length; i++) {
+    const c = str[i];
+    if (escaped) { result += c; escaped = false; continue; }
+    if (c === '\\' && inString) { result += c; escaped = true; continue; }
+    if (c === '"') { inString = !inString; result += c; continue; }
+    if (inString && c === '\n') { result += '\\n'; continue; }
+    if (inString && c === '\r') { result += '\\r'; continue; }
+    if (inString && c === '\t') { result += '\\t'; continue; }
+    result += c;
+  }
+  return result;
+}
+
 const MODEL = 'claude-sonnet-4-6';
 
 const DICT_SYSTEM = `אתה מומחה לדיני בטיחות תעסוקתית בישראל.
 
-חוקים ותקנות מרכזיים:
-א. פקודת הבטיחות בעבודה [נוסח חדש], התש"ל-1970
-ב. חוק ארגון הפיקוח על העבודה, התשי"ד-1954 ותקנותיו
-ג. תקנות ארגון הפיקוח (תכנית לניהול בטיחות), התשע"ג-2013
-ד. פקודת התאונות והמחלות המקצועיות, 1945
-ה. תקנות בטיחות ספציפיות (גובה, רעש, חומרים מסוכנים, ניטור)
+## ⚠️ כלל עליון: מערכת סגורה — אל תמציא מידע
 
-החזר תמיד JSON תקני בלבד ללא markdown, בפורמט הזה:
+הכלי מבוסס אך ורק על תקנות ארגון הפיקוח על העבודה (תכנית לניהול בטיחות), התשע"ג-2013.
+
+**אסור בהחלט:**
+- לציין מספר סעיף, תקנה, או ניסוח שאינך בטוח לחלוטין שקיים בחקיקה המפורטת להלן
+- לייחס הגדרות לחוקים שאינם כוללים אותן
+- להמציא חיבור בין מושג לחוק כשהחיבור אינו קיים בפועל
+
+**תקנות 2013 — מה הן מכסות (בלבד):**
+תקנות ארגון הפיקוח על העבודה (תכנית לניהול בטיחות), התשע"ג-2013 עוסקות במערכת ניהול בטיחות בארגון:
+מדיניות בטיחות, מינוי ממונה בטיחות, הגדרת תפקידים, הערכת סיכונים, יעדים ותוכנית פעולה,
+נהלי עבודה בטוחה, הכשרה והדרכה, תקשורת פנימית וועדות בטיחות, מוכנות לחירום,
+חקירת תאונות ואירועים, ניטור ובקרה, ביקורת פנימית, סקר הנהלה.
+
+**אם המושג אינו מופיע בתקנות 2013 אלה** — החזר בדיוק:
+{"not_found": true, "term": "המושג", "message": "מושג זה אינו מוגדר בתקנות ניהול הבטיחות 2013 שעליהן מתבסס הכלי. ייתכן שהוא מוגדר בתקנות בטיחות ספציפיות אחרות (כגון תקנות עגורנאים, עבודה בגובה, חשמל וכו') שאינן בתחום הכלי הנוכחי."}
+
+**אם המושג כן מופיע בתקנות 2013** — החזר JSON בפורמט הזה:
 {
   "term": "המושג",
-  "definition": "הגדרה מדויקת ומקצועית",
+  "definition": "הגדרה מדויקת ומקצועית מהחקיקה",
   "sources": [
     {
       "law": "שם החוק/תקנות",
-      "section": "סעיף/תקנה ספציפי",
+      "section": "סעיף/תקנה שאתה בטוח לחלוטין שקיים",
       "text": "הסבר מה אומר הסעיף לגבי המושג",
-      "source_ids": ["nevo_pikuach"],
+      "source_ids": ["nevo_safety_plan_2013"],
       "accent": "blue"
     }
   ],
@@ -30,10 +58,9 @@ const DICT_SYSTEM = `אתה מומחה לדיני בטיחות תעסוקתית 
 
 מזהי מקורות זמינים (השתמש רק במתאימים):
 safety_admin_main, safety_mgmt_plan, nevo_pikuach, nevo_safety_ordinance, nevo_safety_plan_2013,
-nevo_safety_committees, nevo_safety_officers, nevo_training, nevo_height, nevo_hazardous,
-nevo_noise, nevo_accidents, nevo_monitoring, mlg_main, mlg_publications`;
+nevo_safety_committees, nevo_safety_officers, nevo_training, mlg_main, mlg_publications`;
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function POST(request) {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -81,7 +108,7 @@ export async function POST(request) {
     const match = raw.replace(/```json|```/gi, '').trim().match(/\{[\s\S]*\}/);
     if (!match) return NextResponse.json({ error: 'לא התקבל JSON תקין' }, { status: 502 });
 
-    return NextResponse.json(JSON.parse(match[0]));
+    return NextResponse.json(JSON.parse(repairJson(match[0])));
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
