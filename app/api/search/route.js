@@ -65,10 +65,18 @@ const DICT_SYSTEM = `אתה מומחה לדיני בטיחות תעסוקתית 
   "related": ["מושג 1", "מושג 2", "מושג 3"]
 }
 
-מזהי מקורות זמינים (השתמש רק במתאימים):
+מזהי מקורות זמינים (השתמש רק במתאימים — שמות מדויקים חשובים):
 safety_admin_main, safety_mgmt_plan, nevo_pikuach, nevo_safety_ordinance, nevo_safety_plan_2013,
 nevo_safety_committees, nevo_safety_officers, nevo_training, nevo_height, nevo_hazardous,
-nevo_noise, nevo_accidents, nevo_monitoring, mlg_main, mlg_publications
+nevo_noise, nevo_accidents, nevo_monitoring, mlg_main, mlg_publications,
+nevo_cranes, nevo_construction, nevo_ppe, nevo_electrical, nevo_fire
+
+מיפוי חובה לתקנות ספציפיות (אל תשתמש ב-nevo_pikuach כשיש תקנה ספציפית):
+- עגורנאי / אתת / מלגזאי / מנוף → nevo_cranes
+- מנהל עבודה / פיגום / חפירה / אתר בנייה → nevo_construction
+- קסדה / כפפות / נעלי בטיחות / רתמה / מסכה / ציוד מגן אישי → nevo_ppe
+- חשמלאי / הארקה / מפסק / מתח / RCD → nevo_electrical
+- כיבוי אש / מטפה / ספרינקלר / גלאי עשן → nevo_fire
 
 ## טקסט תקנות רשמי לעיון
 
