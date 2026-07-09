@@ -219,8 +219,13 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
 .procedure-box-header h4 { font-size: 15px; font-weight: 700; }
 .procedure-body {
   padding: 20px 22px; font-size: 13px; color: var(--text2);
-  line-height: 1.8; white-space: pre-wrap; max-height: 420px; overflow-y: auto;
+  line-height: 1.8; max-height: 420px; overflow-y: auto; direction: rtl;
 }
+.proc-h1 { font-size: 17px; font-weight: 700; color: var(--text); margin: 18px 0 6px; }
+.proc-h2 { font-size: 15px; font-weight: 700; color: #2E81C5; margin: 14px 0 5px; border-bottom: 1px solid rgba(46,129,197,0.3); padding-bottom: 3px; }
+.proc-h3 { font-size: 13px; font-weight: 600; color: var(--text); margin: 10px 0 4px; }
+.proc-p  { margin: 3px 0; }
+.proc-spacer { height: 6px; }
 
 /* ── Dictionary ── */
 .search-wrap { display: flex; gap: 10px; margin-bottom: 22px; }

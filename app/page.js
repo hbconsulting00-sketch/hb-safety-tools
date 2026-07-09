@@ -1,6 +1,20 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+function renderMarkdown(md) {
+  return md
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .split('\n')
+    .map(line => {
+      if (line.startsWith('### ')) return `<h3 class="proc-h3">${line.slice(4)}</h3>`;
+      if (line.startsWith('## '))  return `<h2 class="proc-h2">${line.slice(3)}</h2>`;
+      if (line.startsWith('# '))   return `<h1 class="proc-h1">${line.slice(2)}</h1>`;
+      if (!line.trim())             return '<div class="proc-spacer"></div>';
+      return '<p class="proc-p">' + line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') + '</p>';
+    })
+    .join('');
+}
+
 // ── Verified source links (client-side, for rendering only) ──────────────
 const SOURCES = {
   safety_admin_main:     { title: 'מינהל הבטיחות — משרד העבודה', url: 'https://www.gov.il/he/departments/units/safety-and-occupational-health-contacts', cat: 'gov' },
@@ -228,7 +242,7 @@ export default function Page() {
     setPL(false);
   }
 
-  // ── Generate procedure (streaming) ──────────────────────────
+  // ── Generate procedure ───────────────────────────────────────
   async function generateProcedure() {
     if (!planResult) return;
     setProc(true); setProcText(''); setProcErr('');
@@ -242,13 +256,8 @@ export default function Page() {
         const t = await res.text();
         try { throw new Error(JSON.parse(t).error); } catch { throw new Error(t || 'שגיאת שרת'); }
       }
-      const reader  = res.body.getReader();
-      const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        setProcText(prev => prev + decoder.decode(value, { stream: true }));
-      }
+      const data = await res.json();
+      setProcText(data.text || '');
     } catch (e) { setProcErr(e.message); }
     setProc(false);
   }
@@ -599,7 +608,7 @@ export default function Page() {
                   <h4>✍️ טיוטת תוכנית ניהול בטיחות מעודכנת</h4>
                   <button className="action-btn" style={{ minWidth: 'unset', padding: '8px 14px', fontSize: 13 }} onClick={downloadProcedure}>⬇️ הורד</button>
                 </div>
-                <div className="procedure-body">{procText}</div>
+                <div className="procedure-body" dangerouslySetInnerHTML={{ __html: renderMarkdown(procText) }} />
               </div>
             )}
           </div>
