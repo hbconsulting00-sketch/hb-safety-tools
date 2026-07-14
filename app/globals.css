@@ -328,6 +328,12 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
   border-radius: 11px; padding: 15px 18px; color: var(--red);
   font-size: 13px; margin-top: 14px;
 }
+.law-badge {
+  margin-top: 14px; padding: 10px 16px; border-radius: 10px;
+  font-size: 13px; font-weight: 600; text-align: right;
+}
+.law-badge--ok   { background: rgba(34,197,94,0.1);  border: 1px solid rgba(34,197,94,0.35);  color: #16a34a; }
+.law-badge--warn { background: rgba(234,179,8,0.1);  border: 1px solid rgba(234,179,8,0.35);  color: #a16207; }
 .empty-state { padding: 60px; text-align: center; color: var(--text3); }
 .empty-state .empty-icon { font-size: 44px; margin-bottom: 14px; }
 .empty-state p { font-size: 14px; line-height: 1.7; }

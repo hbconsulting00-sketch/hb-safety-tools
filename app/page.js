@@ -573,6 +573,10 @@ export default function Page() {
 
             {planResult && (
               <>
+                {planResult.law_date
+                  ? <div className="law-badge law-badge--ok">🟢 נבדק מול נוסח התקנות המלא, מעודכן ל-{planResult.law_date}</div>
+                  : <div className="law-badge law-badge--warn">⚠️ מאגר תקנות לא נטען — הבדיקה בוצעה מול תקציר מובנה</div>
+                }
                 <PlanResults result={planResult} />
                 <div className="action-btns">
                   <button className="action-btn primary" onClick={exportGapReport}>📄 ייצא דוח פערים (Word)</button>

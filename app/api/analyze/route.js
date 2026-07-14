@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 
 // Fixes raw control characters inside JSON string values (common in Claude output)
 function repairJson(str) {
@@ -25,6 +27,48 @@ function repairJson(str) {
 
 const MODEL = 'claude-sonnet-4-6';
 
+// ── Load regulations once at module startup ──────────────────────────────────
+let LAW_TEXT = null;
+let LAW_DATE = null;
+try {
+  const raw = fs.readFileSync(path.join(process.cwd(), 'public', 'regulations.json'), 'utf-8');
+  const regulations = JSON.parse(raw);
+  const law = regulations.laws?.find(l => l.id === 'safety_plan_2013');
+  if (law?.sections?.length) {
+    LAW_DATE = law.scraped_at ?? null;
+    LAW_TEXT = law.sections
+      .filter(s => !s.chapter?.includes('תוספת'))
+      .map(s => `תקנה ${s.number}${s.title ? ' — ' + s.title : ''}:\n${s.text}`)
+      .join('\n\n');
+  }
+} catch {
+  // LAW_TEXT stays null → will use fallback summary below
+}
+
+const LAW_FALLBACK = `**תחולה:** מקומות עבודה עם 50+ עובדים, ומקומות שבתוספת (בתי חולים, מלונות, קניונים, שדות תעופה, מוסדות אקדמיים, חקלאות).
+
+**הגדרות עיקריות (תקנה 1):**
+- גורם סיכון: מקור, מצב או פעולה שעלולים לגרום פגיעה גופנית
+- הערכת סיכונים: זיהוי גורמי סיכון + הערכת חומרה × סבירות + בחירת בקרות + תיעוד
+- בקרת סיכונים: פעולות הנדסיות, אדמיניסטרטיביות ו-PPE לצמצום סיכון
+- בטיחות ובריאות תעסוקתית: הגנה על גוף ובריאות העובד מסיכוני העבודה
+- ניהול סיכונים: תהליך רב-שלבי ושיטתי לזיהוי, הערכה ובקרת סיכונים
+
+**רכיבי התכנית (תקנה 5):** תיאור מקום עבודה, מדיניות בטיחות, מערך בטיחות, ניהול סיכונים, הדרכות, בדיקות ציוד, בדיקות רפואיות, היתרים, מוכנות לחירום.`;
+
+const LAW_SECTION = LAW_TEXT
+  ? `## נוסח מלא ומחייב: תקנות ארגון הפיקוח על העבודה (תכנית לניהול הבטיחות), התשע"ג-2013
+גורד מ-nevo.co.il, עדכני לתאריך: ${LAW_DATE}
+
+${LAW_TEXT}
+
+בדוק את תוכנית ניהול הבטיחות המצורפת אך ורק מול הנוסח שלמעלה.
+אל תסתמך על ידע קודם שלך לגבי נוסח התקנות — רק על הנוסח שסופק.`
+  : `## נוסח תקנות ארגון הפיקוח על העבודה (תכנית לניהול בטיחות), התשע"ג-2013
+⚠️ מאגר תקנות לא נטען — הבדיקה מתבצעת מול תקציר מובנה.
+
+${LAW_FALLBACK}`;
+
 const PLAN_SYSTEM = `אתה מומחה לדיני בטיחות תעסוקתית בישראל, בעל ידע מעמיק בתקנות ארגון הפיקוח על העבודה (תכנית לניהול בטיחות), התשע"ג-2013.
 
 ## ⚠️ כלל עליון: אל תמציא — ענה אך ורק על בסיס מה שכתוב במסמך שסופק
@@ -36,18 +80,7 @@ const PLAN_SYSTEM = `אתה מומחה לדיני בטיחות תעסוקתית 
 4. "notes" — הסבר מה חסר לפי הקריטריונים להלן בלבד, ללא הוספת דרישות מתקנות אחרות.
 5. אסור להמציא שמות נהלים, מספרי טפסים, תאריכים, שמות ממונים.
 
-## נוסח תקנות ארגון הפיקוח על העבודה (תכנית לניהול בטיחות), התשע"ג-2013
-
-**תחולה:** מקומות עבודה עם 50+ עובדים, ומקומות שבתוספת (בתי חולים, מלונות, קניונים, שדות תעופה, מוסדות אקדמיים, חקלאות).
-
-**הגדרות עיקריות (תקנה 1):**
-- גורם סיכון: מקור, מצב או פעולה שעלולים לגרום פגיעה גופנית
-- הערכת סיכונים: זיהוי גורמי סיכון + הערכת חומרה × סבירות + בחירת בקרות + תיעוד
-- בקרת סיכונים: פעולות הנדסיות, אדמיניסטרטיביות ו-PPE לצמצום סיכון
-- בטיחות ובריאות תעסוקתית: הגנה על גוף ובריאות העובד מסיכוני העבודה
-- ניהול סיכונים: תהליך רב-שלבי ושיטתי לזיהוי, הערכה ובקרת סיכונים
-
-**רכיבי התכנית (תקנה 5):** תיאור מקום עבודה, מדיניות בטיחות, מערך בטיחות, ניהול סיכונים, הדרכות, בדיקות ציוד, בדיקות רפואיות, היתרים, מוכנות לחירום.
+${LAW_SECTION}
 
 ## קריטריוני הערכה לכל דרישה
 
@@ -229,7 +262,10 @@ export async function POST(request) {
       return NextResponse.json({ error: 'לא התקבל JSON תקין מה-AI' }, { status: 502 });
     }
 
-    return NextResponse.json(JSON.parse(repairJson(match[0])));
+    const result = JSON.parse(repairJson(match[0]));
+    // Include the law date so the client can display the credibility badge
+    result.law_date = LAW_DATE;
+    return NextResponse.json(result);
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
