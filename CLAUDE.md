@@ -2,13 +2,15 @@
 
 ## Commands
 
-```bash
-npm run dev        # local dev server (http://localhost:3000)
-npm run build      # production build
-git add . && git commit -m "..." && git push origin main   # deploy (Vercel auto-deploys from GitHub)
+```powershell
+npx next dev       # local dev server (http://localhost:3000)
+npx next build     # production build (use npx — npm run build fails locally due to Hebrew path)
+git add <files> && git commit -m "..." && git push origin main   # deploy (Vercel auto-deploys from GitHub)
 ```
 
 **לא** משתמשים ב-`vercel --prod` ישירות — הפרויקט מוגדר לדפלוי אוטומטי מ-GitHub.
+
+**Local build note:** `npm run build` כושל מקומית בגלל בעיית Turbopack עם נתיב עברי (`האחסון שלי`). זה לא מונע דפלוי — Vercel בונה בסביבה נפרדת ועובד תקין.
 
 ## Accounts
 
@@ -23,7 +25,7 @@ git add . && git commit -m "..." && git push origin main   # deploy (Vercel auto
 
 ## Architecture
 
-Next.js 15.5.8 App Router. האפליקציה כולה ב-`app/page.js` (single page, 3 טאבים).
+Next.js 16.2.10 App Router. האפליקציה כולה ב-`app/page.js` (single page, 3 טאבים).
 
 | Tab | Hebrew | Purpose |
 |-----|--------|---------|
@@ -35,7 +37,7 @@ Next.js 15.5.8 App Router. האפליקציה כולה ב-`app/page.js` (single 
 
 | Route | Timeout | What it does |
 |-------|---------|--------------|
-| `analyze/route.js` | 300s | PDF (base64) or Word (plain text) → Claude → 12-chapter gap analysis JSON |
+| `analyze/route.js` | 300s | PDF (base64) or Word (plain text) → Claude → 12-chapter gap analysis JSON + `law_date` |
 | `generate-procedure/route.js` | 300s | Gap analysis JSON → improved procedure text (returns `{ text }`) |
 | `search/route.js` | 60s | Term → Claude → legal definition JSON |
 | `analyses/route.js` | — | GET list / POST save analysis (Supabase) |
@@ -74,6 +76,17 @@ Next.js 15.5.8 App Router. האפליקציה כולה ב-`app/page.js` (single 
 - `ANTHROPIC_API_KEY`
 - `NEXT_PUBLIC_SUPABASE_URL` — `https://filhprlnxpwncikcuszg.supabase.co`
 - `SUPABASE_SERVICE_ROLE_KEY`
+
+## Regulations Data (`public/regulations.json`)
+
+קובץ ~0.5MB עם נוסח מלא של 6 חוקי בטיחות ישראליים, גורד מ-nevo.co.il.
+
+- **נטען בשרת** פעם אחת בעת הפעלת ה-API route (`fs.readFileSync` ב-module scope)
+- **החוק הרלוונטי לניתוח:** `safety_plan_2013` (תקנות תכנית לניהול הבטיחות, תשע"ג-2013)
+- סעיפים עם `chapter` המכיל "תוספת" מסוננים — אינם סעיפי חוק
+- ה-API מחזיר `law_date` (תאריך ה-`scraped_at`) → `page.js` מציג תווית ירוקה "🟢 נבדק מול נוסח מלא"
+- אם הקובץ חסר/פגום → fallback לתקציר מובנה + תווית צהובה אזהרה
+- **לעדכון תקנות:** החלפי את `public/regulations.json` בקובץ חדש ועשי push. אין צורך לשנות קוד.
 
 ## Common Issues
 
